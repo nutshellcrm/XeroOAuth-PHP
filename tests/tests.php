@@ -36,6 +36,40 @@ if ( isset($_REQUEST['wipe'])) {
         }
     }
 
+    if (isset($_REQUEST['payments'])) {
+       if (!isset($_REQUEST['method'])) {
+          $response = $XeroOAuth->request('GET', $XeroOAuth->url('Payments', 'core'), array('Where' => 'Status=="AUTHORISED"'));
+          if ($XeroOAuth->response['code'] == 200) {
+              $payments = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+              echo "There are " . count($payments->Payments[0]). " payments in this Xero organisation, the first one is: </br>";
+              pr($payments->Payments[0]->Payment);
+          } else {
+              outputError($XeroOAuth);
+          }
+
+        } elseif (isset($_REQUEST['method']) && $_REQUEST['method'] == "post" && $_REQUEST['payments']== 1 ) {
+              $response = $XeroOAuth->request('GET', $XeroOAuth->url('Payments', 'core'), array('Where' => 'Status=="AUTHORISED"'));
+               if ($XeroOAuth->response['code'] == 200) {
+                   $payment = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+                   if(count($payment->Payments[0]) > 0){
+                   echo "Deleting the first available payment with ID: " . $payment->Payments[0]->Payment->PaymentID . "</br>";
+                   }
+               }
+            $xml = "<Payment>
+                      <Status>DELETED</Status>
+                    </Payment>";
+            $response = $XeroOAuth->request('POST', $XeroOAuth->url('Payments/'.$payment->Payments[0]->Payment->PaymentID, 'core'), array(), $xml);
+            if ($XeroOAuth->response['code'] == 200) {
+                $payments = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+                echo count($payments->Payments[0]). " payment deleted in this Xero organisation: </br>";
+                pr($payments->Payments[0]->Payment);
+            } else {
+                outputError($XeroOAuth);
+            }
+
+        }
+    }
+
     if (isset($_REQUEST['accountsfilter'])) {
         $response = $XeroOAuth->request('GET', $XeroOAuth->url('Accounts', 'core'), array('Where' => 'Type=="BANK"'));
         if ($XeroOAuth->response['code'] == 200) {
@@ -52,6 +86,16 @@ if ( isset($_REQUEST['wipe'])) {
             $employees = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
             echo "There are " . count($employees->Employees[0]). " employees in this Xero organisation, the first one is: </br>";
             pr($employees->Employees[0]->Employee);
+        } else {
+            outputError($XeroOAuth);
+        }
+    }
+     if (isset($_REQUEST['payrollsuperfunds'])) {
+        $response = $XeroOAuth->request('GET', $XeroOAuth->url('SuperFunds', 'payroll'), array());
+        if ($XeroOAuth->response['code'] == 200) {
+            $superfunds = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+            echo "There are " . count($superfunds->SuperFunds[0]). " superfunds in this Xero organisation, the first one is: </br>";
+            pr($superfunds->SuperFunds[0]->SuperFund);
         } else {
             outputError($XeroOAuth);
         }
@@ -217,7 +261,8 @@ if ( isset($_REQUEST['wipe'])) {
 
     }
     if (isset($_REQUEST['invoicesfilter'])) {
-       $response = $XeroOAuth->request('GET', $XeroOAuth->url('Invoices', 'core'), array('Where' => 'Contact.Name.Contains("Martin")'));
+        $response = $XeroOAuth->request('GET', $XeroOAuth->url('Invoices', 'core'), array('Where' => 'Contact.Name.Contains("Martin")'));
+      
        if ($XeroOAuth->response['code'] == 200) {
            $accounts = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
            echo "There are " . count($accounts->Invoices[0]). " matching invoices in this Xero organisation, the first one is: </br>";
@@ -337,6 +382,37 @@ if (isset($_REQUEST['invoicesmodified'])) {
   }
    }
 
+if( isset($_REQUEST['items'])) {
+       if (!isset($_REQUEST['method'])) {
+           $response = $XeroOAuth->request('GET', $XeroOAuth->url('Items', 'core'), array());
+           if ($XeroOAuth->response['code'] == 200) {
+               $items = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+               echo "There are " . count($items->Items[0]). " items in this Xero organisation, the first one is: </br>";
+               pr($items->Items[0]->Item);
+
+           } else {
+               outputError($XeroOAuth);
+           }
+       } elseif(isset($_REQUEST['method']) && $_REQUEST['method'] == "put" ){
+           $xml = "<Items>
+                     <Item>
+                       <Code>ITEM-CODE-01</Code>
+                      </Item>
+                   </Items>
+                   ";
+           $response = $XeroOAuth->request('PUT', $XeroOAuth->url('Items', 'core'), array(), $xml);
+           if ($XeroOAuth->response['code'] == 200) {
+               $item = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+               echo "" . count($item->Items). " item created in this Xero organisation. ";
+               if (count($item->Items[0])>0) {
+                   echo "The item is: </br>";
+                   pr($item->Items[0]->Item);
+               }
+           } else {
+               outputError($XeroOAuth);
+           }
+       }
+   }
 
    if (isset($_REQUEST['organisation'])&&$_REQUEST['request']=="") {
        $response = $XeroOAuth->request('GET', $XeroOAuth->url('Organisation', 'core'), array('page' => 0));
@@ -450,13 +526,49 @@ if (isset($_REQUEST['invoicesmodified'])) {
                 echo "" . count($tracking->TrackingCategories[0]). " tracking restored in this Xero organisation.";
                 if (count($tracking->TrackingCategories[0])>0) {
                     echo "The first one is: </br>";
-                    pr($tracking);
+                    pr($tracking->TrackingCategories[0]);
                 }
             } else {
                 outputError($XeroOAuth);
             }
         }
    }
+
+   if (isset($_REQUEST['folders'])) {
+       if (!isset($_REQUEST['method'])) {
+        $response = $XeroOAuth->request('GET', $XeroOAuth->url('Folders', 'file'), array());
+          if ($XeroOAuth->response['code'] == 200) {
+              $folders = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+              echo "There are " . count($folders). " folders in this Xero organisation, the first one is: </br>";
+              pr($folders->Folder[0]);
+          } else {
+              outputError($XeroOAuth);
+          }
+    }elseif (isset($_REQUEST['method']) && $_REQUEST['method'] == "files" && $_REQUEST['folders']== 1 ) {
+            
+            $response = $XeroOAuth->request('GET', $XeroOAuth->url('Folders', 'file'), array());
+               if ($XeroOAuth->response['code'] == 200) {
+                   $folder = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+                   echo "There are " . count($folder). " folders in this Xero organisation. </br>";
+                   if(count($folder->Folder[0]) > 0){
+                   echo "The first one has the name: " . $folder->Folder[0]->Name;
+                   echo ", and will be checked for files.</br>";
+                   }
+                }
+
+            $response = $XeroOAuth->request('GET', $XeroOAuth->url('Folders/'.$folder->Folder[0]->Id.'/Files', 'file'), array(), $xml);
+            if ($XeroOAuth->response['code'] == 200) {
+                $folders = $XeroOAuth->parseResponse($XeroOAuth->response['response'], $XeroOAuth->response['format']);
+                echo "" . $folders->FileCount. " files in this folder.";
+                if (count($folders->Files[0])>0) {
+                    echo "The first one is: </br>";
+                    pr($folders->Files[0]->Items[0]->File[0]);
+                }
+            } else {
+                outputError($XeroOAuth);
+            }
+        }
+      }
    
    if (isset($_REQUEST['multipleoperations'])) {
        $response = $XeroOAuth->request('GET', $XeroOAuth->url('Organisation', 'core'), array('page' => 0));
